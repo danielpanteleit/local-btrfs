@@ -3,4 +3,3 @@ bin/
 
 *.iml
 coverage.out
-vendor/
