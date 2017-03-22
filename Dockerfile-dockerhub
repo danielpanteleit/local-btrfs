@@ -1,0 +1,22 @@
+FROM alpine
+
+COPY *.go /gowork/src/local-persist/
+COPY vendor/vendor.json /gowork/src/local-persist/vendor/
+
+RUN apk add --no-cache -t build wget tar gzip ca-certificates git && \
+    wget https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz && \
+    tar xf go1.8.linux-amd64.tar.gz && \
+    mkdir /lib64 && ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2  && \
+    export GOROOT=/go && \
+    export GOPATH=/gowork && \
+    export PATH=/go/bin:/gowork/bin:$PATH && \
+    go get -u github.com/kardianos/govendor && \
+    cd /gowork/src/local-persist/ && \
+    govendor sync -v && \
+    go build -o /local-btrfs -v && \
+    cd / && \
+    rm -rf go gowork go1.8.linux-amd64.tar.gz && \
+    apk del --no-cache build && \
+    apk add --no-cache btrfs-progs
+
+ENTRYPOINT ["/local-btrfs"]
