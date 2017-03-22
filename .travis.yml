@@ -11,6 +11,11 @@ go:
 before_install:
   - sudo apt-get update
   - sudo apt-get install -o Dpkg::Options::="--force-confold" --force-yes -y docker-engine
+  - sudo apt-get install -y btrfs-tools
+  - dd if=/dev/zero of=/tmp/dockerfs.img bs=1M seek=100 count=0
+  - sudo mkfs.btrfs /tmp/dockerfs.img
+  - sudo mkdir /btrfs
+  - sudo mount -o loop /tmp/dockerfs.img /btrfs
 
 before_script:
   - docker version
@@ -20,9 +25,9 @@ before_script:
 
 script:
   - ./scripts/integration.sh
-  - make test
+  - ./scripts/docker-test.sh
 
 after_success:
   - git checkout dockerhub
-  - git merge -ff-only master
+  - git merge --ff-only master
   - git push origin dockerhub

@@ -1,0 +1,10 @@
+FROM golang:1.8
+
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends btrfs-tools
+RUN mkdir /btrfs
+
+WORKDIR $GOPATH/src/local-persist
+COPY ./ ./
+
+CMD scripts/test-in-docker.sh

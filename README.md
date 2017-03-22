@@ -1,6 +1,6 @@
-# Local Persist Volume Plugin for Docker
+# Local BTRFS Volume Plugin for Docker
 
-[![Build Status](https://travis-ci.org/CWSpear/local-persist.svg?branch=master)](https://travis-ci.org/CWSpear/local-persist) [![Join the chat at https://gitter.im/CWSpear/local-persist](https://badges.gitter.im/CWSpear/local-persist.svg)](https://gitter.im/CWSpear/local-persist?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Build Status](https://travis-ci.org/danielpanteleit/local-btrfs.svg?branch=master)](https://travis-ci.org/danielpanteleit/local-btrfs)
 
 Create named local volumes that persist in the location(s) you want!
 

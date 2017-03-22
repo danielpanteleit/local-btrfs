@@ -1,7 +1,7 @@
 .idea
 bin
 init
-scripts
+#scripts
 local-persist.iml
 README.md
 coverage.out

@@ -5,11 +5,12 @@ import(
     "os"
 
     "github.com/docker/go-plugins-helpers/volume"
+    "os/exec"
 )
 
 var (
     defaultTestName = "test-volume"
-    defaultTestMountpoint = "/tmp/data/local-persist-test"
+    defaultTestMountpoint = "/btrfs/local-persist-test"
 )
 
 func TestCreate(t *testing.T) {
@@ -87,7 +88,7 @@ func TestMountUnmountPath(t *testing.T) {
 
     if !(pathRes.Mountpoint == mountRes.Mountpoint &&
          mountRes.Mountpoint == unmountRes.Mountpoint &&
-         unmountRes.Mountpoint == defaultTestMountpoint) {
+         unmountRes.Mountpoint == defaultTestMountpoint + "/current") {
         t.Error("Mount, Unmount and Path should all return the same Mountpoint")
     }
 }
@@ -111,11 +112,21 @@ func defaultCreateHelper(driver localPersistDriver, t *testing.T) {
 }
 
 func cleanupHelper(driver localPersistDriver, t *testing.T, name string, mountpoint string) {
+    if _, err := os.Stat(defaultTestMountpoint); !os.IsNotExist(err) {
+        cmd := exec.Command("./scripts/test-cleanup.sh", defaultTestMountpoint)
+        if output, err := cmd.CombinedOutput(); err != nil {
+            t.Error("[Cleanup] Error removing all subvolumes from test directory", err.Error(), "\n", string(output))
+        }
+    }
+
     os.RemoveAll(mountpoint)
 
-    _, err := os.Stat(mountpoint)
-    if !os.IsNotExist(err) {
-        t.Error("[Cleanup] Mountpoint still exists:", err.Error())
+    if _, err := os.Stat(mountpoint); !os.IsNotExist(err) {
+        if err != nil {
+            t.Error("[Cleanup] Error checking if mountpoint still exists", err.Error())
+        } else {
+            t.Error("[Cleanup] Mountpoint still exists")
+        }
     }
 
 
