@@ -10,15 +10,11 @@ import (
     "encoding/json"
 
     "github.com/docker/go-plugins-helpers/volume"
-    "github.com/docker/engine-api/client"
-    "github.com/docker/engine-api/types"
     "github.com/fatih/color"
-    "golang.org/x/net/context"
+    "os/exec"
 )
 
 var (
-    // red = color.New(color.FgRed).SprintfFunc()
-    // green = color.New(color.FgGreen).SprintfFunc()
     yellow = color.New(color.FgYellow).SprintfFunc()
     cyan = color.New(color.FgCyan).SprintfFunc()
     blue = color.New(color.FgBlue).SprintfFunc()
@@ -49,7 +45,7 @@ func newLocalPersistDriver() localPersistDriver {
         volumes : map[string]string{},
 		mutex   : &sync.Mutex{},
         debug   : true,
-        name    : "local-persist",
+        name    : "local-btrfs",
     }
 
     os.Mkdir(stateDir, 0700)
@@ -107,18 +103,29 @@ func (driver localPersistDriver) Create(req volume.Request) volume.Response {
         return volume.Response{ Err: fmt.Sprintf("The volume %s already exists", req.Name) }
     }
 
-    err := os.MkdirAll(mountpoint, 0755)
-    fmt.Printf("Ensuring directory %s exists on host...\n", magenta(mountpoint))
-
-    if err != nil {
+    if err := os.MkdirAll(mountpoint, 0700); err != nil {
         fmt.Printf("%17s Could not create directory %s\n", " ", magenta(mountpoint))
         return volume.Response{ Err: err.Error() }
     }
+    fmt.Printf("Ensuring directory %s exists on host...\n", magenta(mountpoint))
+
+    snapdir := mountpoint + "/snaps"
+    if err := os.MkdirAll(snapdir, 0700); err != nil {
+        fmt.Printf("%17s Could not create directory %s\n", " ", magenta(snapdir))
+        return volume.Response{ Err: err.Error() }
+    }
+
+    filename := mountpoint + "/current"
+    if _, err := os.Stat(filename); os.IsNotExist(err) {
+        cmd := exec.Command("btrfs", "subvolume", "create", filename)
+        if output, err := cmd.CombinedOutput(); err != nil {
+            return volume.Response{ Err: fmt.Sprintf("Could not create subvolume at %s: %s\n%s", filename, err.Error(), string(output) ) }
+        }
+    }
 
     driver.volumes[req.Name] = mountpoint
-    e := driver.saveState(driver.volumes)
-    if e != nil {
-        fmt.Println(e.Error())
+    if err := driver.saveState(driver.volumes); err != nil {
+        fmt.Println(err.Error())
     }
 
     fmt.Printf("%17s Created volume %s with mountpoint %s\n", " ", cyan(req.Name), magenta(mountpoint))
@@ -133,8 +140,7 @@ func (driver localPersistDriver) Remove(req volume.Request) volume.Response {
 
     delete(driver.volumes, req.Name)
 
-    err := driver.saveState(driver.volumes)
-    if err != nil {
+    if err := driver.saveState(driver.volumes); err != nil {
         fmt.Println(err.Error())
     }
 
@@ -154,9 +160,10 @@ func (driver localPersistDriver) Mount(req volume.MountRequest) volume.Response 
 func (driver localPersistDriver) Path(req volume.Request) volume.Response {
     fmt.Print(white("%-18s", "Path Called... "))
 
-    fmt.Printf("Returned path %s\n", magenta(driver.volumes[req.Name]))
+    mpoint := driver.volumes[req.Name] + "/current"
+    fmt.Printf("Returned path %s\n", magenta(mpoint))
 
-    return volume.Response{ Mountpoint:  driver.volumes[req.Name] }
+    return volume.Response{ Mountpoint: mpoint }
 }
 
 func (driver localPersistDriver) Unmount(req volume.UnmountRequest) volume.Response {
@@ -183,54 +190,13 @@ func (driver localPersistDriver) exists(name string) bool {
 func (driver localPersistDriver) volume(name string) *volume.Volume {
     return &volume.Volume{
         Name: name,
-        Mountpoint: driver.volumes[name],
+        Mountpoint: driver.volumes[name] + "/current",
     }
-}
-
-func (driver localPersistDriver) findExistingVolumesFromDockerDaemon() (error, map[string]string) {
-    // set up the ability to make API calls to the daemon
-    defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-    // need at least Docker 1.9 (API v1.21) for named Volume support
-    cli, err := client.NewClient("unix:///var/run/docker.sock", "v1.21", nil, defaultHeaders)
-    if err != nil {
-        return err, map[string]string{}
-    }
-
-    // grab ALL containers...
-    options := types.ContainerListOptions{All: true}
-    containers, err := cli.ContainerList(context.Background(), options)
-
-    // ...and check to see if any of them belong to this driver and recreate their references
-    var volumes = map[string]string{}
-    for _, container := range containers {
-        info, err := cli.ContainerInspect(context.Background(), container.ID)
-        if err != nil {
-            // something really weird happened here... PANIC
-            panic(err)
-        }
-
-        for _, mount := range info.Mounts {
-            if mount.Driver == driver.name {
-                // @TODO there could be multiple volumes (mounts) with this { name: source } combo, and while that's okay
-                // what if they is the same name with a different source? could that happen? if it could,
-                // it'd be bad, so maybe we want to panic here?
-                volumes[mount.Name] = mount.Source
-            }
-        }
-    }
-
-    if err != nil || len(volumes) == 0 {
-        fmt.Print("Attempting to load from file state...   ")
-
-        return driver.findExistingVolumesFromStateFile()
-    }
-
-    return nil, volumes
 }
 
 func (driver localPersistDriver) findExistingVolumesFromStateFile() (error, map[string]string) {
-    path := path.Join(stateDir, stateFile)
-    fileData, err := ioutil.ReadFile(path)
+    p := path.Join(stateDir, stateFile)
+    fileData, err := ioutil.ReadFile(p)
     if err != nil {
         return err, map[string]string{}
     }
@@ -254,6 +220,6 @@ func (driver localPersistDriver) saveState(volumes map[string]string) error {
         return err
     }
 
-    path := path.Join(stateDir, stateFile)
-    return ioutil.WriteFile(path, fileData, 0600)
+    p := path.Join(stateDir, stateFile)
+    return ioutil.WriteFile(p, fileData, 0600)
 }
