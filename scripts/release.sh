@@ -12,7 +12,7 @@ nocolor='\033[0m'         # No Color
 
 
 USER=cwspear
-REPO=local-persist
+REPO=local-btrfs
 
 # check to make sure github-release is installed!
 github-release --version > /dev/null || exit
@@ -89,7 +89,7 @@ echo Uploading binaries...
 for FILE in `find bin -type f`; do
     NAME=${FILE/bin\//}
     NAME=${NAME//\//-}
-    NAME=`echo $NAME | sed 's/\(.*\)-local-persist/local-persist-\1/'`
+    NAME=`echo $NAME | sed 's/\(.*\)-local-btrfs/local-btrfs-\1/'`
 
     echo Uploading ${NAME}...
 

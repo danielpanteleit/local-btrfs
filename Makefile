@@ -1,5 +1,5 @@
 PWD=$(shell bash -c 'pwd')
-BIN_NAME=local-persist
+BIN_NAME=local-btrfs
 
 coverage:
 	GO_ENV=test go test -v -coverprofile=coverage.out ./... && sed -i '' 's|'_$(PWD)'|.|g' coverage.out && go tool cover -html=coverage.out

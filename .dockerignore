@@ -1,7 +1,6 @@
 .idea
 bin
 init
-#scripts
-local-persist.iml
+local-btrfs.iml
 README.md
 coverage.out

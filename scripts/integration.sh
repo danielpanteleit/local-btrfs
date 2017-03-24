@@ -3,7 +3,7 @@
 set -e
 
 function create-volume {
-    VOLUME=`docker volume create --driver=local-btrfs --opt mountpoint=/btrfs/local-persist-integration/ --name=test-data`
+    VOLUME=`docker volume create --driver=local-btrfs --opt mountpoint=/btrfs/local-btrfs-integration/ --name=test-data`
 }
 
 function create-containers {

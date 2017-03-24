@@ -3,8 +3,8 @@
 set -e
 
 echo "building image"
-LOCAL_PERSIST=$(docker build -q -f Dockerfile-build .)
+LOCAL_BTRFS=$(docker build -q -f Dockerfile-build .)
 echo "compiling"
-docker run -it --rm -v `pwd`/bin:/go/src/local-persist/bin $LOCAL_PERSIST
+docker run -it --rm -v `pwd`/bin:/go/src/local-btrfs/bin $LOCAL_BTRFS
 echo "removing image"
-docker rmi $LOCAL_PERSIST
+docker rmi $LOCAL_BTRFS

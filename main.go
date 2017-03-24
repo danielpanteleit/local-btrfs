@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-    driver := newLocalPersistDriver()
+    driver := newLocalBtrfsDriver()
 
     handler := volume.NewHandler(driver)
     fmt.Println(handler.ServeUnix(driver.name, 0))

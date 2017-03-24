@@ -17,6 +17,6 @@ services:
 
 volumes:
   data:
-    driver: local-persist
+    driver: local-btrfs
     driver_opts:
-      mountpoint: /data/local-persist/data
+      mountpoint: /data/local-btrfs/data

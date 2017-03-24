@@ -24,10 +24,10 @@ var (
 
 const (
     stateDir = "/var/lib/docker/plugin-data/"
-    stateFile = "local-persist.json"
+    stateFile = "local-btrfs.json"
 )
 
-type localPersistDriver struct {
+type localBtrfsDriver struct {
     volumes    map[string]string
     mutex      *sync.Mutex
     debug      bool
@@ -38,10 +38,10 @@ type saveData struct {
     State map[string]string `json:"state"`
 }
 
-func newLocalPersistDriver() localPersistDriver {
+func newLocalBtrfsDriver() localBtrfsDriver {
     fmt.Printf(white("%-18s", "Starting... "))
 
-    driver := localPersistDriver{
+    driver := localBtrfsDriver{
         volumes : map[string]string{},
 		mutex   : &sync.Mutex{},
         debug   : true,
@@ -56,7 +56,7 @@ func newLocalPersistDriver() localPersistDriver {
     return driver
 }
 
-func (driver localPersistDriver) Get(req volume.Request) volume.Response {
+func (driver localBtrfsDriver) Get(req volume.Request) volume.Response {
     fmt.Print(white("%-18s", "Get Called... "))
 
     if driver.exists(req.Name) {
@@ -72,7 +72,7 @@ func (driver localPersistDriver) Get(req volume.Request) volume.Response {
     }
 }
 
-func (driver localPersistDriver) List(req volume.Request) volume.Response {
+func (driver localBtrfsDriver) List(req volume.Request) volume.Response {
     fmt.Print(white("%-18s", "List Called... "))
 
     var volumes []*volume.Volume
@@ -87,7 +87,7 @@ func (driver localPersistDriver) List(req volume.Request) volume.Response {
     }
 }
 
-func (driver localPersistDriver) Create(req volume.Request) volume.Response {
+func (driver localBtrfsDriver) Create(req volume.Request) volume.Response {
     fmt.Print(white("%-18s", "Create Called... "))
 
     mountpoint := req.Options["mountpoint"]
@@ -133,7 +133,7 @@ func (driver localPersistDriver) Create(req volume.Request) volume.Response {
     return volume.Response{}
 }
 
-func (driver localPersistDriver) Remove(req volume.Request) volume.Response {
+func (driver localBtrfsDriver) Remove(req volume.Request) volume.Response {
     fmt.Print(white("%-18s", "Remove Called... "))
     driver.mutex.Lock()
     defer driver.mutex.Unlock()
@@ -149,7 +149,7 @@ func (driver localPersistDriver) Remove(req volume.Request) volume.Response {
     return volume.Response{}
 }
 
-func (driver localPersistDriver) Mount(req volume.MountRequest) volume.Response {
+func (driver localBtrfsDriver) Mount(req volume.MountRequest) volume.Response {
     fmt.Print(white("%-18s", "Mount Called... "))
 
     fmt.Printf("Mounted %s\n", cyan(req.Name))
@@ -157,7 +157,7 @@ func (driver localPersistDriver) Mount(req volume.MountRequest) volume.Response 
     return driver.Path(volume.Request{Name: req.Name})
 }
 
-func (driver localPersistDriver) Path(req volume.Request) volume.Response {
+func (driver localBtrfsDriver) Path(req volume.Request) volume.Response {
     fmt.Print(white("%-18s", "Path Called... "))
 
     mpoint := driver.volumes[req.Name] + "/current"
@@ -166,7 +166,7 @@ func (driver localPersistDriver) Path(req volume.Request) volume.Response {
     return volume.Response{ Mountpoint: mpoint }
 }
 
-func (driver localPersistDriver) Unmount(req volume.UnmountRequest) volume.Response {
+func (driver localBtrfsDriver) Unmount(req volume.UnmountRequest) volume.Response {
     fmt.Print(white("%-18s", "Unmount Called... "))
 
     fmt.Printf("Unmounted %s\n", cyan(req.Name))
@@ -174,7 +174,7 @@ func (driver localPersistDriver) Unmount(req volume.UnmountRequest) volume.Respo
     return driver.Path(volume.Request{Name: req.Name})
 }
 
-func (driver localPersistDriver) Capabilities(req volume.Request) volume.Response {
+func (driver localBtrfsDriver) Capabilities(req volume.Request) volume.Response {
     fmt.Print(white("%-18s", "Capabilities Called... "))
 
     return volume.Response{
@@ -183,18 +183,18 @@ func (driver localPersistDriver) Capabilities(req volume.Request) volume.Respons
 }
 
 
-func (driver localPersistDriver) exists(name string) bool {
+func (driver localBtrfsDriver) exists(name string) bool {
     return driver.volumes[name] != ""
 }
 
-func (driver localPersistDriver) volume(name string) *volume.Volume {
+func (driver localBtrfsDriver) volume(name string) *volume.Volume {
     return &volume.Volume{
         Name: name,
         Mountpoint: driver.volumes[name] + "/current",
     }
 }
 
-func (driver localPersistDriver) findExistingVolumesFromStateFile() (error, map[string]string) {
+func (driver localBtrfsDriver) findExistingVolumesFromStateFile() (error, map[string]string) {
     p := path.Join(stateDir, stateFile)
     fileData, err := ioutil.ReadFile(p)
     if err != nil {
@@ -210,7 +210,7 @@ func (driver localPersistDriver) findExistingVolumesFromStateFile() (error, map[
     return nil, data.State
 }
 
-func (driver localPersistDriver) saveState(volumes map[string]string) error {
+func (driver localBtrfsDriver) saveState(volumes map[string]string) error {
     data := saveData{
         State: volumes,
     }
