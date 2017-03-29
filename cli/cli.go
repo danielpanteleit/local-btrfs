@@ -13,52 +13,88 @@ import (
 )
 
 var (
-	app = kingpin.New("chat", "A command-line chat application.")
+	app = kingpin.New("local-btrfs", "")
 
-	cmdDaemon = app.Command("daemon", "Register a new user.")
+	daemonCmd = app.Command("daemon", "Starts the daemon.")
 
-	cmdSnap       = app.Command("snap", "")
-	cmdSnapVolume = cmdSnap.Arg("volume", "").Required().String()
-	cmdSnapName   = cmdSnap.Arg("name", "").Required().String()
+    addCmd = app.Command("add", "Adds a volume")
+    addArgVolume = addCmd.Arg("volume", "").Required().String()
+    addArgPath = addCmd.Arg("path", "").Required().String()
 
-	/*
-	   cmdSnaps       = app.Command("snaps", "")
-	   cmdSnapsVolume = cmdSnaps.Arg("volume", "").String()
-	*/
+    rmCmd = app.Command("rm", "Removes volume")
+    rmForceFlag = rmCmd.Flag("purge", "Removes the volume on disk").Short('p').Bool()
+    rmArgVolume = rmCmd.Arg("volume", "").Required().String()
 
-	//cmdRestore
-	//cmdRemove
+    pathCmd = app.Command("path", "Shows path to the volume")
+
+	snapCmd = app.Command("snap", "Manages snapshots")
+
+    snapAddCmd       = snapCmd.Command("add", "")
+	snapAddArgVolume = snapAddCmd.Arg("volume", "").Required().String()
+	snapAddArgName   = snapAddCmd.Arg("name", "").Required().String()
+
+    snapLsCmd       = snapCmd.Command("ls", "")
+    snapLsArgVolume = snapLsCmd.Arg("volume", "").Required().String()
+
+    snapRmCmd       = snapCmd.Command("rm", "")
+    snapRmArgVolume = snapRmCmd.Arg("volume", "").Required().String()
+    snapRmArgName   = snapRmCmd.Arg("name", "").Required().String()
+
+    snapRestoreCmd       = snapCmd.Command("restore", "")
+    snapRestoreArgVolume = snapRestoreCmd.Arg("volume", "").Required().String()
+    snapRestoreArgName   = snapRestoreCmd.Arg("name", "").Required().String()
 )
 
 func Main() {
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
-	case cmdDaemon.FullCommand():
-		serveDockerHandler()
-	case cmdSnap.FullCommand():
-		clientHandler(daemon.MakeSnapRequest(*cmdSnapVolume, *cmdSnapName))
-		//case cmdSnaps.FullCommand():
-		//    clientHandler("ListSnaps", []string{*cmdSnapsVolume})
+	case daemonCmd.FullCommand():
+		runDaemon()
+    case addCmd.FullCommand():
+        clientHandler(daemon.CreateVolumeRequest(*addArgVolume, *addArgPath))
+    case rmCmd.FullCommand():
+        clientHandler(daemon.RemoveVolumeRequest(*rmArgVolume, *rmForceFlag))
+    case pathCmd.FullCommand():
+        fmt.Printf("not implemented yet!\n")
+	case snapAddCmd.FullCommand():
+		clientHandler(daemon.CreateSnapRequest(*snapAddArgVolume, *snapAddArgName))
+    case snapLsCmd.FullCommand():
+        clientHandler(daemon.ListSnapshotsRequest(*snapLsArgVolume))
+    case snapRmCmd.FullCommand():
+        clientHandler(daemon.RemoveSnapRequest(*snapRmArgVolume, *snapRmArgName))
+    case snapRestoreCmd.FullCommand():
+        clientHandler(daemon.RestoreSnapRequest(*snapRestoreArgVolume, *snapRestoreArgName))
 	}
 }
 
-func serveDockerHandler() {
+func runDaemon() {
 	driver := daemon.NewLocalBtrfsDriver()
 
-	rpcApi := daemon.RpcApi{Driver: driver}
-	rpc.Register(rpcApi)
-	rpc.HandleHTTP()
-	l, e := net.Listen("tcp", ":1234")
-	if e != nil {
-		log.Fatal("listen error:", e)
-	}
-	go http.Serve(l, nil)
+    setupRpcHandler(driver)
 
-	handler := volume.NewHandler(driver)
-	fmt.Println(handler.ServeUnix(driver.Name, 0))
+    handler := volume.NewHandler(driver)
+    fmt.Println(handler.ServeUnix(driver.Name, 0))
+}
+
+func setupRpcHandler(driver daemon.LocalBtrfsDriver) {
+    rpcApi := daemon.RpcApi{Driver: driver}
+    rpc.Register(rpcApi)
+    rpc.HandleHTTP()
+
+    sockFile := "/var/run/local-btrfs.sock"
+    l, e := net.Listen("unix", sockFile)
+    if e != nil {
+        log.Fatal("listen error:", e)
+    }
+
+    if err := os.Chmod(sockFile, 0700); err != nil {
+        log.Fatal(err)
+    }
+    
+    go http.Serve(l, nil)
 }
 
 func clientHandler(request daemon.RpcApiRequest) {
-	client, err := rpc.DialHTTP("tcp", "localhost:1234")
+	client, err := rpc.DialHTTP("unix", "/var/run/local-btrfs.sock")
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}

@@ -50,7 +50,7 @@ func NewLocalBtrfsDriver() LocalBtrfsDriver {
 		Name:    "local-btrfs",
 	}
 
-	os.Mkdir(stateDir, 0700)
+	os.MkdirAll(stateDir, 0700)
 
 	_, driver.volumes = driver.findExistingVolumesFromStateFile()
 	fmt.Printf("Found %s volumes on startup\n", yellow(strconv.Itoa(len(driver.volumes))))
@@ -98,55 +98,55 @@ func (driver LocalBtrfsDriver) Create(req volume.Request) volume.Response {
 		return volume.Response{Err: "The `mountpoint` option is required"}
 	}
 
-	driver.mutex.Lock()
-	defer driver.mutex.Unlock()
-
-	if driver.exists(req.Name) {
-		return volume.Response{Err: fmt.Sprintf("The volume %s already exists", req.Name)}
-	}
-
-	if err := os.MkdirAll(mountpoint, 0700); err != nil {
-		fmt.Printf("%17s Could not create directory %s\n", " ", magenta(mountpoint))
-		return volume.Response{Err: err.Error()}
-	}
-	fmt.Printf("Ensuring directory %s exists on host...\n", magenta(mountpoint))
-
-	snapdir := mountpoint + "/snaps"
-	if err := os.MkdirAll(snapdir, 0700); err != nil {
-		fmt.Printf("%17s Could not create directory %s\n", " ", magenta(snapdir))
-		return volume.Response{Err: err.Error()}
-	}
-
-	filename := mountpoint + "/current"
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		if err := callBtrfs("subvolume", "create", filename); err != nil {
-			return volume.Response{Err: err.Error()}
-		}
-	}
-
-	driver.volumes[req.Name] = mountpoint
-	if err := driver.saveState(driver.volumes); err != nil {
-		fmt.Println(err.Error())
-	}
-
-	fmt.Printf("%17s Created volume %s with mountpoint %s\n", " ", cyan(req.Name), magenta(mountpoint))
+    if err := driver.createVolume(req.Name, mountpoint); err != nil {
+        return volume.Response{Err: err.Error()}
+    }
 
 	return volume.Response{}
 }
 
+func (driver LocalBtrfsDriver) createVolume(name string, mountpoint string) error {
+    fmt.Print(white("%-18s", "Create Called... "))
+
+    driver.mutex.Lock()
+    defer driver.mutex.Unlock()
+
+    if driver.exists(name) {
+        return errors.New(fmt.Sprintf("The volume %s already exists", name))
+    }
+
+    if err := os.MkdirAll(mountpoint, 0700); err != nil {
+        fmt.Printf("%17s Could not create directory %s\n", " ", magenta(mountpoint))
+        return err
+    }
+    fmt.Printf("Ensuring directory %s exists on host...\n", magenta(mountpoint))
+
+    snapdir := mountpoint + "/snaps"
+    if err := os.MkdirAll(snapdir, 0700); err != nil {
+        fmt.Printf("%17s Could not create directory %s\n", " ", magenta(snapdir))
+        return err
+    }
+
+    filename := mountpoint + "/current"
+    if _, err := os.Stat(filename); os.IsNotExist(err) {
+        if err := callBtrfs("subvolume", "create", filename); err != nil {
+            return err
+        }
+    }
+
+    driver.volumes[name] = mountpoint
+    if err := driver.saveState(driver.volumes); err != nil {
+        fmt.Println(err.Error())
+    }
+
+    fmt.Printf("%17s Created volume %s with mountpoint %s\n", " ", cyan(name), magenta(mountpoint))
+
+    return nil
+}
+
+
 func (driver LocalBtrfsDriver) Remove(req volume.Request) volume.Response {
-	fmt.Print(white("%-18s", "Remove Called... "))
-	driver.mutex.Lock()
-	defer driver.mutex.Unlock()
-
-	delete(driver.volumes, req.Name)
-
-	if err := driver.saveState(driver.volumes); err != nil {
-		fmt.Println(err.Error())
-	}
-
-	fmt.Printf("Removed %s\n", cyan(req.Name))
-
+    driver.removeVolume(req.Name, false)
 	return volume.Response{}
 }
 
@@ -224,7 +224,74 @@ func (driver LocalBtrfsDriver) saveState(volumes map[string]string) error {
 	return ioutil.WriteFile(p, fileData, 0600)
 }
 
-func (driver LocalBtrfsDriver) makeSnap(volumeName string, snapshotName string) error {
+func (driver LocalBtrfsDriver) removeVolume(volumeName string, purge bool) error {
+    // TODO: check if mounted and return warn/error
+
+    volumePath, exists := driver.volumes[volumeName]
+    if !exists {
+        return errors.New("volume " + volumeName + " does not exist")
+    }
+
+    if purge {
+        snaps, err := driver.listSnapshots(volumeName)
+        if err != nil {
+            return err
+        }
+        for _, snap := range snaps {
+            driver.removeSnap(volumeName, snap)
+        }
+
+        currentPath := volumePath + "/current"
+        if err := callBtrfs("subvolume", "delete", currentPath); err != nil {
+            return err
+        }
+
+        os.RemoveAll(volumePath)
+    }
+
+    driver.mutex.Lock()
+    defer driver.mutex.Unlock()
+
+    delete(driver.volumes, volumeName)
+
+    if err := driver.saveState(driver.volumes); err != nil {
+        fmt.Println(err.Error())
+    }
+
+    fmt.Printf("Removed %s\n", cyan(volumeName))
+
+    return nil
+}
+
+func (driver LocalBtrfsDriver) listSnapshots(volumeName string) ([]string, error) {
+    volumePath, err := driver.getVolumePath(volumeName)
+    if err != nil {
+        return nil, err
+    }
+
+    files, err := ioutil.ReadDir(volumePath+"/snaps")
+    if err != nil {
+        return nil, err
+    }
+
+    snaps := make([]string, len(files))
+    for i, fi := range files {
+        snaps[i] = fi.Name()
+    }
+
+    return snaps, nil
+}
+
+func (driver *LocalBtrfsDriver) getVolumePath(volumeName string) (string, error) {
+    volumePath, exists := driver.volumes[volumeName]
+    if !exists {
+        return "", errors.New("volume " + volumeName + " does not exist")
+    }
+    return volumePath, nil
+}
+
+
+func (driver LocalBtrfsDriver) createSnap(volumeName string, snapshotName string) error {
 	// TODO: check if mounted and return warn/error
 
 	volumePath, exists := driver.volumes[volumeName]
