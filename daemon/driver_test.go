@@ -112,7 +112,7 @@ func defaultCreateHelper(driver LocalBtrfsDriver, t *testing.T) {
 
 func cleanupHelper(driver LocalBtrfsDriver, t *testing.T, name string, mountpoint string) {
 	if _, err := os.Stat(defaultTestMountpoint); !os.IsNotExist(err) {
-		cmd := exec.Command("./scripts/test-cleanup.sh", defaultTestMountpoint)
+		cmd := exec.Command("../scripts/test-cleanup.sh", defaultTestMountpoint)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Error("[Cleanup] Error removing all subvolumes from test directory", err.Error(), "\n", string(output))
 		}
