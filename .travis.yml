@@ -21,7 +21,7 @@ before_script:
   - docker version
   - make binary-linux-amd64
   - chmod +x bin/linux/amd64/local-btrfs
-  - sudo ./bin/linux/amd64/local-btrfs &
+  - sudo ./bin/linux/amd64/local-btrfs daemon &
 
 script:
   - ./scripts/integration.sh

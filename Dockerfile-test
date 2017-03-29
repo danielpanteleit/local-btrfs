@@ -5,6 +5,5 @@ RUN apt-get install -y --no-install-recommends btrfs-tools
 RUN mkdir /btrfs
 
 WORKDIR $GOPATH/src/local-btrfs
-COPY ./ ./
 
 CMD scripts/test-in-docker.sh

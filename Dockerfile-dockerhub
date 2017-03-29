@@ -1,6 +1,8 @@
 FROM alpine
 
 COPY *.go /gowork/src/local-btrfs/
+COPY daemon /gowork/src/local-btrfs/daemon/
+COPY cli /gowork/src/local-btrfs/cli/
 COPY vendor/vendor.json /gowork/src/local-btrfs/vendor/
 
 RUN apk add --no-cache -t build wget tar gzip ca-certificates git && \
@@ -20,3 +22,5 @@ RUN apk add --no-cache -t build wget tar gzip ca-certificates git && \
     apk add --no-cache btrfs-progs
 
 ENTRYPOINT ["/local-btrfs"]
+
+CMD ["daemon"]

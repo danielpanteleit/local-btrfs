@@ -3,8 +3,6 @@
 set -e
 
 echo "building image"
-LOCAL_BTRFS=$(docker build -q -f Dockerfile-build .)
+docker build -f Dockerfile-build -t local-btrfs-build .
 echo "compiling"
-docker run -it --rm -v `pwd`/bin:/go/src/local-btrfs/bin $LOCAL_BTRFS
-echo "removing image"
-docker rmi $LOCAL_BTRFS
+docker run -it --rm -v `pwd`:/go/src/local-btrfs:ro -v `pwd`/bin:/go/src/local-btrfs/bin local-btrfs-build

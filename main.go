@@ -1,14 +1,7 @@
 package main
 
-import (
-    "fmt"
-
-    "github.com/docker/go-plugins-helpers/volume"
-)
+import "github.com/danielpanteleit/local-btrfs/cli"
 
 func main() {
-    driver := newLocalBtrfsDriver()
-
-    handler := volume.NewHandler(driver)
-    fmt.Println(handler.ServeUnix(driver.name, 0))
+    cli.Main()
 }

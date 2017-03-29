@@ -1,4 +1,4 @@
-package main
+package daemon
 
 import(
     "testing"
@@ -14,7 +14,7 @@ var (
 )
 
 func TestCreate(t *testing.T) {
-    driver := newLocalBtrfsDriver()
+    driver := NewLocalBtrfsDriver()
 
     defaultCreateHelper(driver, t)
 
@@ -42,7 +42,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-    driver := newLocalBtrfsDriver()
+    driver := NewLocalBtrfsDriver()
 
     defaultCreateHelper(driver, t)
 
@@ -55,7 +55,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-    driver := newLocalBtrfsDriver()
+    driver := NewLocalBtrfsDriver()
 
     name := defaultTestName + "2"
     mountpoint := defaultTestMountpoint + "2"
@@ -77,7 +77,7 @@ func TestList(t *testing.T) {
 }
 
 func TestMountUnmountPath(t *testing.T) {
-    driver := newLocalBtrfsDriver()
+    driver := NewLocalBtrfsDriver()
 
     defaultCreateHelper(driver, t)
 
@@ -94,7 +94,7 @@ func TestMountUnmountPath(t *testing.T) {
 }
 
 
-func createHelper(driver localBtrfsDriver, t *testing.T, name string, mountpoint string) {
+func createHelper(driver LocalBtrfsDriver, t *testing.T, name string, mountpoint string) {
     res := driver.Create(volume.Request{
         Name: name,
         Options: map[string]string{
@@ -107,11 +107,11 @@ func createHelper(driver localBtrfsDriver, t *testing.T, name string, mountpoint
     }
 }
 
-func defaultCreateHelper(driver localBtrfsDriver, t *testing.T) {
+func defaultCreateHelper(driver LocalBtrfsDriver, t *testing.T) {
     createHelper(driver, t, defaultTestName, defaultTestMountpoint)
 }
 
-func cleanupHelper(driver localBtrfsDriver, t *testing.T, name string, mountpoint string) {
+func cleanupHelper(driver LocalBtrfsDriver, t *testing.T, name string, mountpoint string) {
     if _, err := os.Stat(defaultTestMountpoint); !os.IsNotExist(err) {
         cmd := exec.Command("./scripts/test-cleanup.sh", defaultTestMountpoint)
         if output, err := cmd.CombinedOutput(); err != nil {
@@ -138,6 +138,6 @@ func cleanupHelper(driver localBtrfsDriver, t *testing.T, name string, mountpoin
     }
 }
 
-func defaultCleanupHelper(driver localBtrfsDriver, t *testing.T) {
+func defaultCleanupHelper(driver LocalBtrfsDriver, t *testing.T) {
     cleanupHelper(driver, t, defaultTestName, defaultTestMountpoint)
 }

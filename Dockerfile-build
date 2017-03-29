@@ -2,6 +2,4 @@ FROM golang:1.8
 
 WORKDIR $GOPATH/src/local-btrfs
 
-COPY ./ ./
-
 CMD ["make", "binaries"]
