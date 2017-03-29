@@ -17,80 +17,80 @@ var (
 
 	daemonCmd = app.Command("daemon", "Starts the daemon.")
 
-    addCmd = app.Command("add", "Adds a volume")
-    addArgVolume = addCmd.Arg("volume", "").Required().String()
-    addArgPath = addCmd.Arg("path", "").Required().String()
+	addCmd       = app.Command("add", "Adds a volume")
+	addArgVolume = addCmd.Arg("volume", "").Required().String()
+	addArgPath   = addCmd.Arg("path", "").Required().String()
 
-    rmCmd = app.Command("rm", "Removes volume")
-    rmForceFlag = rmCmd.Flag("purge", "Removes the volume on disk").Short('p').Bool()
-    rmArgVolume = rmCmd.Arg("volume", "").Required().String()
+	rmCmd       = app.Command("rm", "Removes volume")
+	rmForceFlag = rmCmd.Flag("purge", "Removes the volume on disk").Short('p').Bool()
+	rmArgVolume = rmCmd.Arg("volume", "").Required().String()
 
-    pathCmd = app.Command("path", "Shows path to the volume")
+	pathCmd = app.Command("path", "Shows path to the volume")
 
 	snapCmd = app.Command("snap", "Manages snapshots")
 
-    snapAddCmd       = snapCmd.Command("add", "")
+	snapAddCmd       = snapCmd.Command("add", "")
 	snapAddArgVolume = snapAddCmd.Arg("volume", "").Required().String()
 	snapAddArgName   = snapAddCmd.Arg("name", "").Required().String()
 
-    snapLsCmd       = snapCmd.Command("ls", "")
-    snapLsArgVolume = snapLsCmd.Arg("volume", "").Required().String()
+	snapLsCmd       = snapCmd.Command("ls", "")
+	snapLsArgVolume = snapLsCmd.Arg("volume", "").Required().String()
 
-    snapRmCmd       = snapCmd.Command("rm", "")
-    snapRmArgVolume = snapRmCmd.Arg("volume", "").Required().String()
-    snapRmArgName   = snapRmCmd.Arg("name", "").Required().String()
+	snapRmCmd       = snapCmd.Command("rm", "")
+	snapRmArgVolume = snapRmCmd.Arg("volume", "").Required().String()
+	snapRmArgName   = snapRmCmd.Arg("name", "").Required().String()
 
-    snapRestoreCmd       = snapCmd.Command("restore", "")
-    snapRestoreArgVolume = snapRestoreCmd.Arg("volume", "").Required().String()
-    snapRestoreArgName   = snapRestoreCmd.Arg("name", "").Required().String()
+	snapRestoreCmd       = snapCmd.Command("restore", "")
+	snapRestoreArgVolume = snapRestoreCmd.Arg("volume", "").Required().String()
+	snapRestoreArgName   = snapRestoreCmd.Arg("name", "").Required().String()
 )
 
 func Main() {
 	switch kingpin.MustParse(app.Parse(os.Args[1:])) {
 	case daemonCmd.FullCommand():
 		runDaemon()
-    case addCmd.FullCommand():
-        clientHandler(daemon.CreateVolumeRequest(*addArgVolume, *addArgPath))
-    case rmCmd.FullCommand():
-        clientHandler(daemon.RemoveVolumeRequest(*rmArgVolume, *rmForceFlag))
-    case pathCmd.FullCommand():
-        fmt.Printf("not implemented yet!\n")
+	case addCmd.FullCommand():
+		clientHandler(daemon.CreateVolumeRequest(*addArgVolume, *addArgPath))
+	case rmCmd.FullCommand():
+		clientHandler(daemon.RemoveVolumeRequest(*rmArgVolume, *rmForceFlag))
+	case pathCmd.FullCommand():
+		fmt.Printf("not implemented yet!\n")
 	case snapAddCmd.FullCommand():
 		clientHandler(daemon.CreateSnapRequest(*snapAddArgVolume, *snapAddArgName))
-    case snapLsCmd.FullCommand():
-        clientHandler(daemon.ListSnapshotsRequest(*snapLsArgVolume))
-    case snapRmCmd.FullCommand():
-        clientHandler(daemon.RemoveSnapRequest(*snapRmArgVolume, *snapRmArgName))
-    case snapRestoreCmd.FullCommand():
-        clientHandler(daemon.RestoreSnapRequest(*snapRestoreArgVolume, *snapRestoreArgName))
+	case snapLsCmd.FullCommand():
+		clientHandler(daemon.ListSnapshotsRequest(*snapLsArgVolume))
+	case snapRmCmd.FullCommand():
+		clientHandler(daemon.RemoveSnapRequest(*snapRmArgVolume, *snapRmArgName))
+	case snapRestoreCmd.FullCommand():
+		clientHandler(daemon.RestoreSnapRequest(*snapRestoreArgVolume, *snapRestoreArgName))
 	}
 }
 
 func runDaemon() {
 	driver := daemon.NewLocalBtrfsDriver()
 
-    setupRpcHandler(driver)
+	setupRpcHandler(driver)
 
-    handler := volume.NewHandler(driver)
-    fmt.Println(handler.ServeUnix(driver.Name, 0))
+	handler := volume.NewHandler(driver)
+	fmt.Println(handler.ServeUnix(driver.Name, 0))
 }
 
 func setupRpcHandler(driver daemon.LocalBtrfsDriver) {
-    rpcApi := daemon.RpcApi{Driver: driver}
-    rpc.Register(rpcApi)
-    rpc.HandleHTTP()
+	rpcApi := daemon.RpcApi{Driver: driver}
+	rpc.Register(rpcApi)
+	rpc.HandleHTTP()
 
-    sockFile := "/var/run/local-btrfs.sock"
-    l, e := net.Listen("unix", sockFile)
-    if e != nil {
-        log.Fatal("listen error:", e)
-    }
+	sockFile := "/var/run/local-btrfs.sock"
+	l, e := net.Listen("unix", sockFile)
+	if e != nil {
+		log.Fatal("listen error:", e)
+	}
 
-    if err := os.Chmod(sockFile, 0700); err != nil {
-        log.Fatal(err)
-    }
+	if err := os.Chmod(sockFile, 0700); err != nil {
+		log.Fatal(err)
+	}
 
-    go http.Serve(l, nil)
+	go http.Serve(l, nil)
 }
 
 func clientHandler(request daemon.RpcApiRequest) {
