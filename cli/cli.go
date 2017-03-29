@@ -89,7 +89,7 @@ func setupRpcHandler(driver daemon.LocalBtrfsDriver) {
     if err := os.Chmod(sockFile, 0700); err != nil {
         log.Fatal(err)
     }
-    
+
     go http.Serve(l, nil)
 }
 
