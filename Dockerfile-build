@@ -1,5 +1,5 @@
 FROM golang:1.8
 
-WORKDIR $GOPATH/src/local-btrfs
+WORKDIR $GOPATH/src/github.com/danielpanteleit/local-btrfs
 
 CMD ["make", "binaries"]
